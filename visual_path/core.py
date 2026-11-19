@@ -166,8 +166,7 @@ def nearest_neighbors(distance: np.ndarray, count: int = 12) -> list[list[int]]:
     count = max(1, count)
     for row in distance:
         order = np.argsort(row)
-        graph.append([int(i) for i in order if i != int(np.argmax(row == row.min()))][:count])
-    # The line above is intentionally simple and is replaced below to retain true row minima.
+        graph.append([])
     for i, row in enumerate(distance):
         graph[i] = [int(j) for j in np.argsort(row) if j != i][:count]
     return graph
@@ -213,12 +212,17 @@ def find_path(index: FeatureIndex, start: int, end: int, sequence_length: int = 
 
 def export_sequence(index: FeatureIndex, sequence: Iterable[int], output_dir: str | Path,
                     include_originals: bool = True, fps: int = 8) -> list[Path]:
-    output = Path(output_dir)
+    output = Path(output_dir).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
+    source_root = index.directory.resolve()
     created: list[Path] = []
     frames: list[Image.Image] = []
     for position, index_number in enumerate(sequence, 1):
-        source = index.paths[index_number]
+        if not 0 <= index_number < len(index.paths):
+            raise IndexError("Sequence contains an image index outside the collection")
+        source = index.paths[index_number].resolve()
+        if not source.is_relative_to(source_root):
+            raise ValueError("Image is outside the indexed directory")
         if include_originals:
             original_copy = output / "originals" / f"{position:04d}_{source.name}"
             original_copy.parent.mkdir(parents=True, exist_ok=True)

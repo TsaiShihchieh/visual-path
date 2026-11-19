@@ -48,7 +48,6 @@ def main() -> None:
         find = gr.Button("Find visual path")
         gallery = gr.Gallery(label="Sequence", columns=5)
         route_text = gr.Textbox(label="Route")
-        export_dir = gr.Textbox(value="visual-path-export", label="Export directory")
         export_button = gr.Button("Export PNG sequence, originals, GIF, and MP4")
         export_status = gr.Textbox(label="Export status")
         find.click(gallery_path, [start, end, length, shape, color, texture, semantic],
@@ -56,7 +55,7 @@ def main() -> None:
 
         def export_path(start_name: str, end_name: str, length: int, fps_value: float,
                          shape_value: float, color_value: float, texture_value: float,
-                         semantic_value: float, output_name: str):
+                         semantic_value: float):
             if not index.paths:
                 return "No images found"
             start_index = next((i for i, p in enumerate(index.paths) if p.name == start_name), 0)
@@ -66,14 +65,18 @@ def main() -> None:
             )
             weights = index.weights(shape_value, color_value, texture_value, semantic_value)
             route = find_path(index, start_index, end_index, int(length), weights)
+            export_root = Path.cwd().resolve()
+            output_path = export_root / "visual-path-export"
+            if not output_path.is_relative_to(export_root):
+                return "Export directory must remain inside the application directory"
             created = export_sequence(
-                index, route, output_name, include_originals=True, fps=max(1, int(fps_value))
+                index, route, output_path, include_originals=True, fps=max(1, int(fps_value))
             )
-            return f"Exported {len(created)} files to {Path(output_name).resolve()}"
+            return f"Exported {len(created)} files to {output_path}"
 
         export_button.click(
             export_path,
-            [start, end, length, fps, shape, color, texture, semantic, export_dir],
+            [start, end, length, fps, shape, color, texture, semantic],
             export_status,
         )
     demo.launch(server_port=args.port, share=args.share)
